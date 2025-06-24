@@ -1,0 +1,30 @@
+# Ignore virtual environment
+venv/
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*.ipynb
+
+# Ignore local executables and drivers
+msedgedriver.exe
+
+# Ignore test or debug scripts
+webdriver_test.py
+
+# Ignore temporary Excel/CSV output files
+*.xlsx
+*.csv
+
+# Ignore archived folders or raw data (optional)
+2024 All Decisions Archive/
+2024 VM Results Archive/
+Archive - manual automation/
+
+# Ignore OS/system files
+.DS_Store
+Thumbs.db
