@@ -588,6 +588,7 @@ screenshots_folder = "./Screenshots"
 import openai
 import json
 import pandas as pd
+import streamlit as st
 
 api_key = st.secrets.get("OPENAI_API_KEY", None)
 
