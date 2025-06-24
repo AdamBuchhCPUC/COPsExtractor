@@ -16,9 +16,10 @@ msedgedriver.exe
 # Ignore test or debug scripts
 webdriver_test.py
 
-# Ignore temporary Excel/CSV output files
+# Ignore temporary Excel/CSV output files and PDFs
 *.xlsx
 *.csv
+*.pdf
 
 # Ignore archived folders or raw data (optional)
 2024 All Decisions Archive/
