@@ -85,27 +85,21 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.chrome.options import Options
 
-from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
 import requests
 import re
 import os
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-
 def get_chrome_driver():
     chrome_options = Options()
-    chrome_options.binary_location = "/usr/bin/chromium"  # ✅ Correct for Debian
+    chrome_options.binary_location = "/usr/bin/chromium"  # Correct for Debian / Streamlit Cloud
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920x1080")
 
-    service = Service("/usr/lib/chromium/chromedriver")  # ✅ Matches installed chromium-driver
-
+    service = Service("/usr/lib/chromium/chromedriver")  # Matches chromium-driver apt package
     return webdriver.Chrome(service=service, options=chrome_options)
 
 def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log, max_retries: int = 3) -> dict:
@@ -144,14 +138,6 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
         except Exception:
             return False
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--window-size=1920x1080")
-
-    service = Service(ChromeDriverManager().install())
     driver = get_chrome_driver()
     driver.get(search_url)
 
@@ -162,7 +148,6 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
             if decision_count > 0 and decision_count % 50 == 0:
                 log("Restarting WebDriver to free resources...")
                 driver.quit()
-                service = Service(ChromeDriverManager().install())
                 driver = get_chrome_driver()
                 driver.get(search_url)
 
@@ -264,7 +249,6 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
         "failed": failed_decisions,
         "total": total_decisions,
     }
-
 
 import pdfplumber
 import re
