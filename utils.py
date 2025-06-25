@@ -91,6 +91,22 @@ import requests
 import re
 import os
 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+
+def get_chrome_driver():
+    chrome_options = Options()
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920x1080")
+
+    service = Service("/usr/bin/chromedriver")
+    return webdriver.Chrome(service=service, options=chrome_options)
+
 def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log, max_retries: int = 3) -> dict:
     os.makedirs(output_dir, exist_ok=True)
 
@@ -135,7 +151,7 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
     chrome_options.add_argument("--window-size=1920x1080")
 
     service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = get_chrome_driver()
     driver.get(search_url)
 
     decision_count = 0
@@ -146,7 +162,7 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
                 log("Restarting WebDriver to free resources...")
                 driver.quit()
                 service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=chrome_options)
+                driver = get_chrome_driver()
                 driver.get(search_url)
 
             retries = 0
