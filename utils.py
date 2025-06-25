@@ -97,14 +97,15 @@ from selenium.webdriver.chrome.options import Options
 
 def get_chrome_driver():
     chrome_options = Options()
-    chrome_options.binary_location = "/usr/bin/chromium-browser"
+    chrome_options.binary_location = "/usr/bin/chromium"  # ✅ Correct for Debian
     chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920x1080")
 
-    service = Service("/usr/bin/chromedriver")
+    service = Service("/usr/lib/chromium/chromedriver")  # ✅ Matches installed chromium-driver
+
     return webdriver.Chrome(service=service, options=chrome_options)
 
 def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log, max_retries: int = 3) -> dict:
