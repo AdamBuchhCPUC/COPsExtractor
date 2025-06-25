@@ -76,107 +76,77 @@ def clean_results_files_before_download(log, folder_path: str, encoding: str = "
 
     return cleaned_files
 
-import os 
-import pandas as pd
-import re
-import requests
 from selenium import webdriver
-from selenium.webdriver.edge.service import Service
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.webdriver.chrome.options import Options
 
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
-
+from webdriver_manager.chrome import ChromeDriverManager
+import pandas as pd
+import requests
+import re
+import os
 
 def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log, max_retries: int = 3) -> dict:
-    """
-    Downloads PDFs of CPUC decisions based on decision numbers found in CSV files.
-
-    Args:
-        input_dir (str): Directory containing the "final_filtered_" CSV files.
-        output_dir (str): Directory where downloaded PDFs will be saved.
-        driver_path (str): Path to the Edge WebDriver executable.
-        search_url (str): URL of the CPUC decision search page.
-        log (function): Logging function for progress updates.
-        max_retries (int): Maximum retries for each decision.
-
-    Returns:
-        dict: Summary of download results, including successes, failures, and the total count.
-    """
-    # Ensure the output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
-    # Gather all CSV files starting with "final_filtered_"
     csv_files = [os.path.join(input_dir, file) for file in os.listdir(input_dir) if file.startswith("final_filtered_") and file.endswith(".csv")]
 
-    # ✅ Initialize decision_numbers list
-    decision_numbers = []  
-
-    # Aggregate decision numbers from all CSV files
+    decision_numbers = []
     for csv_file in csv_files:
         try:
-            df = pd.read_csv(csv_file, encoding='utf-8')  # Try utf-8 first
+            df = pd.read_csv(csv_file, encoding='utf-8')
         except UnicodeDecodeError:
             log(f"Encoding issue with {csv_file}. Retrying with ISO-8859-1...")
-            df = pd.read_csv(csv_file, encoding='ISO-8859-1')  # Fallback to ISO-8859-1
+            df = pd.read_csv(csv_file, encoding='ISO-8859-1')
 
-        # ✅ Check if "Decision Number" column exists
         if "Decision Number" in df.columns:
             cleaned_numbers = df["Decision Number"].dropna().apply(lambda x: re.sub(r'[^\d]', '', str(x))).tolist()
             decision_numbers.extend(cleaned_numbers)
         else:
-            # ✅ Log if the column is missing
             log(f"Warning: 'Decision Number' column not found in {csv_file}.")
 
-    # ✅ Remove duplicates and ensure the list is not empty
-    decision_numbers = list(set(decision_numbers))  
+    decision_numbers = list(set(decision_numbers))
     if not decision_numbers:
         log("No valid decision numbers found.")
-        return {"success": [], "failed": [], "total": 0}  # Return an empty summary instead of exit()
+        return {"success": [], "failed": [], "total": 0}
 
-    # ✅ Initialize tracking for success and failures
     successful_downloads = []
     failed_decisions = []
 
-    # Placeholder for the download logic
     log(f"Found {len(decision_numbers)} unique decision numbers to process.")
 
-
-    # Helper function to check for error pages
     def is_error_page(driver):
-        """Check if the current page contains an error message."""
         try:
             error_text = driver.find_element(By.TAG_NAME, "body").text.lower()
-            if "an unhandled exception occurred" in error_text or "the process cannot access the file" in error_text:
-                return True
-            return False
+            return ("an unhandled exception occurred" in error_text or "the process cannot access the file" in error_text)
         except Exception:
             return False
 
-    from selenium.webdriver.edge.options import Options
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920x1080")
 
-    options = Options()
-    options.add_argument("start-maximized")
-
-    service = Service(EdgeChromiumDriverManager().install())
-    driver = webdriver.Edge(service=service, options=options)
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.get(search_url)
 
-    # Main processing loop
-    max_retries = 3  # Maximum retries for each decision
     decision_count = 0
-
     try:
         for decision_number in decision_numbers:
-            # Restart WebDriver every 50 decisions to free resources
             log(f"Processing decision number {decision_count + 1}/{len(decision_numbers)}: {decision_number}")
             if decision_count > 0 and decision_count % 50 == 0:
                 log("Restarting WebDriver to free resources...")
                 driver.quit()
-                driver = webdriver.Edge(service=Service(EdgeChromiumDriverManager().install()))
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
                 driver.get(search_url)
 
             retries = 0
@@ -184,7 +154,6 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
 
             while retries < max_retries:
                 try:
-                    # Wait for the search box
                     search_box = WebDriverWait(driver, 10).until(
                         EC.visibility_of_element_located((By.ID, "DocTitle"))
                     )
@@ -192,31 +161,25 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
                     search_box.send_keys(decision_number)
                     search_box.send_keys(Keys.RETURN)
 
-                    # Wait for the results table
                     WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located((By.ID, "ResultTable"))
                     )
 
-                    # Check for error page
                     if is_error_page(driver):
                         log(f"Error page detected for decision {decision_number}. Retrying...")
                         retries += 1
                         driver.refresh()
                         continue
 
-                    # Locate the results table and process results
                     results_table = driver.find_element(By.ID, "ResultTable")
                     rows = results_table.find_elements(By.XPATH, ".//tbody/tr[not(@style='height:1px')]")
-
                     downloaded_pdf = False
 
                     for row in rows:
                         try:
-                            # Extract ResultTitleID
                             result_title_td = row.find_element(By.CLASS_NAME, "ResultTitleTD")
                             result_title_id = re.sub(r'[^\w\d]', '_', result_title_td.text.split("\n")[0].strip())
 
-                            # Find and download PDF files
                             pdf_links = row.find_elements(By.XPATH, ".//a[contains(translate(@href, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '.pdf')]")
                             for pdf_link in pdf_links:
                                 pdf_url = pdf_link.get_attribute("href")
@@ -232,24 +195,22 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
                         except Exception as e:
                             log(f"Error processing a result row: {e}")
 
-                    # Track success or failure
                     if downloaded_pdf:
                         successful_downloads.append(decision_number)
                     else:
                         failed_decisions.append(decision_number)
 
-                    success = True  # Mark as successful
-                    break  # Exit retry loop on success
+                    success = True
+                    break
 
                 except WebDriverException as e:
                     log(f"WebDriver error for decision number {decision_number}: {e}")
                     retries += 1
-                    driver.refresh()  # Refresh and retry
+                    driver.refresh()
 
                 except Exception as e:
                     log(f"Error processing decision number {decision_number}: {e}")
                     retries += 1
-                    # Save the error page for debugging
                     with open(f"error_page_{decision_number}.html", "w", encoding="utf-8") as f:
                         f.write(driver.page_source)
 
@@ -257,7 +218,6 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
                 log(f"Failed to process decision number {decision_number} after {max_retries} retries.")
                 failed_decisions.append(decision_number)
 
-            # Navigate back to the search page
             try:
                 driver.get(search_url)
                 WebDriverWait(driver, 10).until(
@@ -269,10 +229,8 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
 
             decision_count += 1
     finally:
-        # Close the WebDriver
         driver.quit()
 
-    # Calculate and display results
     total_decisions = len(decision_numbers)
     successful_count = len(successful_downloads)
     failure_count = len(failed_decisions)
@@ -284,17 +242,10 @@ def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log
     log(f"\nManually add PDFs of the following final decisions to the 'Downloaded Final Decisions' folder before extracting ordering paragraphs:")
     log(f"Decision Numbers: " + str(failed_decisions))
 
-
-    # Summary
-    log("\nSummary:")
-    log(f"Total decision numbers processed: {len(decision_numbers)}")
-    log(f"Successful downloads: {len(successful_downloads)}")
-    log(f"Failed to download: {len(failed_decisions)}")
-
     return {
         "success": successful_downloads,
         "failed": failed_decisions,
-        "total": len(decision_numbers),
+        "total": total_decisions,
     }
 
 
