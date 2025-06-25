@@ -1,3 +1,9 @@
+import os
+import streamlit as st
+
+st.write("Chromium exists:", os.path.exists("/usr/bin/chromium"))
+st.write("Chromedriver exists:", os.path.exists("/usr/lib/chromium/chromedriver"))
+
 import streamlit as st
 from utils import (
     clean_results_files_before_download,
