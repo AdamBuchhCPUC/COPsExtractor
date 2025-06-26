@@ -216,15 +216,15 @@ def run_step_2(silent=False):
             if results["failed"]:
                 raise Exception(f"Failed to download PDFs for: {', '.join(results['failed'])}")
 
-        except Exception as e:
-            if not silent:
-                st.error(f"An error occurred: {e}")
-                st.exception(e)  # Show full traceback in the Streamlit app
-                # Optionally, log to a file for later review:
-                with open("streamlit_error_log.txt", "a") as f:
-                    f.write(traceback.format_exc() + "\n")
-            else:
-                raise e  # Bubble up error in wizard mode
+    except Exception as e:
+        if not silent:
+            st.error(f"An error occurred: {e}")
+            st.exception(e)  # Show full traceback in the Streamlit app
+            # Optionally, log to a file for later review:
+            with open("streamlit_error_log.txt", "a") as f:
+                f.write(traceback.format_exc() + "\n")
+        else:
+            raise e  # Bubble up error in wizard mode
 
 
 def run_step_3(silent=False):
