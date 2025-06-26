@@ -77,13 +77,10 @@ def clean_results_files_before_download(log, folder_path: str, encoding: str = "
     return cleaned_files
 
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
 
 import pandas as pd
 import requests
@@ -91,16 +88,20 @@ import re
 import os
 
 def get_chrome_driver():
-    chrome_options = Options()
-    chrome_options.binary_location = "/usr/bin/chromium"  # Correct for Debian / Streamlit Cloud
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920x1080")
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.binary_location = "/usr/bin/chromium"
 
-    service = Service("/usr/lib/chromium/chromedriver")  # Matches chromium-driver apt package
-    return webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(
+        service=Service(
+            ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()
+        ),
+        options=options
+    )
+    return driver
 
 def download_decision_pdfs(input_dir: str, output_dir: str, search_url: str, log, max_retries: int = 3) -> dict:
     os.makedirs(output_dir, exist_ok=True)
