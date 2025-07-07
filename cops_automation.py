@@ -178,8 +178,7 @@ def run_step_2(silent=False):
             except Exception as e:
                 print(f"Failed to delete {file_path}. Reason: {e}")
 
-
-
+    # Setup logging function for progress updates
     if not silent:
         st.header("Step 2: Download PDFs")
 
@@ -200,7 +199,7 @@ def run_step_2(silent=False):
             log_placeholder.text(message)
     else:
         def streamlit_log(message):
-            pass  # No output in wizard mode
+            print(message)  # Print progress to console in wizard mode
 
     try:
         results = download_decision_pdfs(input_dir, output_dir, search_url, log=streamlit_log)
@@ -213,18 +212,23 @@ def run_step_2(silent=False):
                 st.write("📥 Manually add PDFs of the following Decisions to the 'Downloaded Final Decisions' folder:")
                 st.write(", ".join(results["failed"]))
         else:
+            print(f"Downloaded PDFs for {len(results['success'])} decisions!")
             if results["failed"]:
+                print(f"Failed to download PDFs for: {', '.join(results['failed'])}")
                 raise Exception(f"Failed to download PDFs for: {', '.join(results['failed'])}")
 
     except Exception as e:
         if not silent:
             st.error(f"An error occurred: {e}")
             st.exception(e)  # Show full traceback in the Streamlit app
-            # Optionally, log to a file for later review:
             with open("streamlit_error_log.txt", "a") as f:
                 f.write(traceback.format_exc() + "\n")
         else:
+            print(f"An error occurred: {e}")
+            import traceback as tb
+            print(tb.format_exc())
             raise e  # Bubble up error in wizard mode
+
 
 
 def run_step_3(silent=False):
